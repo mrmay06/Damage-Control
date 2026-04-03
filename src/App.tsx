@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, ArrowLeft, Power, ShieldCheck, Activity, ArrowRight, Sparkles, Volume2, VolumeX } from 'lucide-react';
+import dreamstateMusic from './Dreamstate.mp3';
 
 type Screen = 'START' | 'ASSESSMENT' | 'UPDATING' | 'SUCCESS';
 
@@ -71,17 +72,31 @@ export default function App() {
   const currentStep = ANGER_STEPS[angerLevel];
 
   useEffect(() => {
+    const audio = musicAudioRef.current;
+
+    if (!audio) return;
+
     if (isAudioEnabled) {
-      musicAudioRef.current?.play().catch(() => {});
+      void audio.play().catch(() => {});
     } else {
-      musicAudioRef.current?.pause();
+      audio.pause();
     }
   }, [isAudioEnabled]);
 
   const handleStart = () => {
     setScreen('ASSESSMENT');
-    // We don't auto-enable audio here to respect browser policies unless user interacted
     setIsAudioEnabled(true);
+  };
+
+  const handleAudioToggle = () => {
+    const nextEnabled = !isAudioEnabled;
+    setIsAudioEnabled(nextEnabled);
+
+    if (nextEnabled) {
+      void musicAudioRef.current?.play().catch(() => {});
+    } else {
+      musicAudioRef.current?.pause();
+    }
   };
 
   const handleForgive = () => setScreen('UPDATING');
@@ -99,16 +114,11 @@ export default function App() {
       className="fixed inset-0 flex flex-col transition-colors duration-500 ease-in-out"
       style={{ backgroundColor: screen === 'START' ? '#2A1115' : currentStep.color }}
     >
-      {/* 
-        To use your own music:
-        1. Upload your audio file (e.g., Dreamstate.mp3) to the 'public' folder.
-        2. Change the src below to "/Dreamstate.mp3"
-      */}
-      <audio ref={musicAudioRef} src="/Dreamstate.mp3" loop />
+      <audio ref={musicAudioRef} src={dreamstateMusic} loop preload="auto" />
 
       {/* Audio Toggle */}
       <button 
-        onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+        onClick={handleAudioToggle}
         className="fixed top-6 right-6 z-50 w-12 h-12 rounded-full bg-surface/50 backdrop-blur-md flex items-center justify-center text-text border border-white/10"
       >
         {isAudioEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
@@ -225,7 +235,7 @@ export default function App() {
                   value={angerLevel}
                   onChange={(e) => setAngerLevel(parseInt(e.target.value))}
                   className="w-full"
-                  style={{ '--range-progress': `${(angerLevel / 4) * 100}%` } as React.CSSProperties}
+                  style={{ '--range-progress': `${(angerLevel / 4) * 100}%` } as CSSProperties}
                 />
               </div>
 
