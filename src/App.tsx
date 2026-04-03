@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, ArrowLeft, Power, ShieldCheck, Activity, ArrowRight, Sparkles, Volume2, VolumeX } from 'lucide-react';
-import { GoogleGenAI, Modality } from "@google/genai";
 
 type Screen = 'START' | 'ASSESSMENT' | 'UPDATING' | 'SUCCESS';
 
 const ANGER_STEPS = [
-  { emoji: '😡', text: 'Extremely Angry', color: '#2A1115', voice: 'Extremely angry. Danger zone.' },
-  { emoji: '😒', text: 'Still mad… fair.', color: '#29151A', voice: 'Still mad. Understandable.' },
-  { emoji: '🙂', text: 'Okay… I see hope 👀', color: '#28181E', voice: 'Okay. I see a glimmer of hope.' },
-  { emoji: '😌', text: 'Wait… are we smiling??', color: '#271B23', voice: 'Wait. Is that a smile?' },
-  { emoji: '❤️', text: 'System stabilizing… miracle detected.', color: '#261E28', voice: 'System stabilizing. A miracle has been detected.' },
+  { emoji: '😡', text: 'Extremely Angry', color: '#2A1115' },
+  { emoji: '😒', text: 'Still mad… fair.', color: '#29151A' },
+  { emoji: '🙂', text: 'Okay… I see hope 👀', color: '#28181E' },
+  { emoji: '😌', text: 'Wait… are we smiling??', color: '#271B23' },
+  { emoji: '❤️', text: 'System stabilizing… miracle detected.', color: '#261E28' },
 ];
 
 const UPDATE_PHASES = [
@@ -18,8 +17,6 @@ const UPDATE_PHASES = [
   "Processing…",
   "Installing better behavior…"
 ];
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => void }) => {
   const [displayedText, setDisplayedText] = useState('');
@@ -29,7 +26,6 @@ const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => voi
     setDisplayedText('');
     let i = 0;
     
-    // Small delay to ensure the component is fully mounted and visible
     const startTimeout = setTimeout(() => {
       const interval = setInterval(() => {
         if (!isMounted) return;
@@ -69,117 +65,23 @@ export default function App() {
   const [angerLevel, setAngerLevel] = useState(0);
   const [updatePhase, setUpdatePhase] = useState(0);
   const [isAudioEnabled, setIsAudioEnabled] = useState(false);
-  const [isMusicLoading, setIsMusicLoading] = useState(false);
   
   const musicAudioRef = useRef<HTMLAudioElement | null>(null);
-  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentStep = ANGER_STEPS[angerLevel];
 
-  const playVoice = useCallback(async (text: string) => {
-    if (!isAudioEnabled) return;
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-preview-tts",
-        contents: [{ parts: [{ text: `Say playfully and softly: ${text}` }] }],
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: {
-              prebuiltVoiceConfig: { voiceName: 'Kore' },
-            },
-          },
-        },
-      });
-
-      const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-      if (base64Audio) {
-        const audioSrc = `data:audio/wav;base64,${base64Audio}`;
-        if (voiceAudioRef.current) {
-          voiceAudioRef.current.src = audioSrc;
-          voiceAudioRef.current.play();
-        }
-      }
-    } catch (error) {
-      console.error("Voice generation failed:", error);
-    }
-  }, [isAudioEnabled]);
-
-  const generateMusic = async () => {
-    if (musicAudioRef.current?.src || isMusicLoading) return;
-    setIsMusicLoading(true);
-    try {
-      const response = await ai.models.generateContentStream({
-        model: "lyria-3-clip-preview",
-        contents: 'Generate a 30-second soft, velvety, romantic, slightly comedic background track for a relationship apology app.',
-      });
-
-      let audioBase64 = "";
-      let mimeType = "audio/wav";
-
-      for await (const chunk of response) {
-        const parts = chunk.candidates?.[0]?.content?.parts;
-        if (!parts) continue;
-        for (const part of parts) {
-          if (part.inlineData?.data) {
-            if (!audioBase64 && part.inlineData.mimeType) {
-              mimeType = part.inlineData.mimeType;
-            }
-            audioBase64 += part.inlineData.data;
-          }
-        }
-      }
-
-      const binary = atob(audioBase64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mimeType });
-      const audioUrl = URL.createObjectURL(blob);
-      
-      if (musicAudioRef.current) {
-        musicAudioRef.current.src = audioUrl;
-        musicAudioRef.current.loop = true;
-        if (isAudioEnabled) musicAudioRef.current.play();
-      }
-    } catch (error) {
-      console.error("Music generation failed:", error);
-    } finally {
-      setIsMusicLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (isAudioEnabled) {
-      generateMusic();
       musicAudioRef.current?.play().catch(() => {});
     } else {
       musicAudioRef.current?.pause();
     }
   }, [isAudioEnabled]);
 
-  useEffect(() => {
-    if (screen === 'ASSESSMENT') {
-      playVoice(currentStep.voice);
-    }
-  }, [angerLevel, screen, playVoice]);
-
-  useEffect(() => {
-    if (screen === 'UPDATING') {
-      playVoice(UPDATE_PHASES[updatePhase]);
-    }
-  }, [updatePhase, screen, playVoice]);
-
-  useEffect(() => {
-    if (screen === 'SUCCESS') {
-      playVoice("Mr. May's Update complete. Chances of repeating stupidity: significantly reduced. You are welcome.");
-    }
-  }, [screen, playVoice]);
-
   const handleStart = () => {
     setScreen('ASSESSMENT');
-    if (!isAudioEnabled) setIsAudioEnabled(true);
+    // We don't auto-enable audio here to respect browser policies unless user interacted
+    setIsAudioEnabled(true);
   };
 
   const handleForgive = () => setScreen('UPDATING');
@@ -197,8 +99,12 @@ export default function App() {
       className="fixed inset-0 flex flex-col transition-colors duration-500 ease-in-out"
       style={{ backgroundColor: screen === 'START' ? '#2A1115' : currentStep.color }}
     >
-      <audio ref={musicAudioRef} />
-      <audio ref={voiceAudioRef} />
+      {/* 
+        To use your own music:
+        1. Upload your audio file (e.g., dreamstate.mp3) to the 'public' folder.
+        2. Change the src below to "/dreamstate.mp3"
+      */}
+      <audio ref={musicAudioRef} src="" loop />
 
       {/* Audio Toggle */}
       <button 
@@ -319,6 +225,7 @@ export default function App() {
                   value={angerLevel}
                   onChange={(e) => setAngerLevel(parseInt(e.target.value))}
                   className="w-full"
+                  style={{ '--range-progress': `${(angerLevel / 4) * 100}%` } as React.CSSProperties}
                 />
               </div>
 
