@@ -101,10 +101,10 @@ export default function App() {
     >
       {/* 
         To use your own music:
-        1. Upload your audio file (e.g., dreamstate.mp3) to the 'public' folder.
-        2. Change the src below to "/dreamstate.mp3"
+        1. Upload your audio file (e.g., Dreamstate.mp3) to the 'public' folder.
+        2. Change the src below to "/Dreamstate.mp3"
       */}
-      <audio ref={musicAudioRef} src="" loop />
+      <audio ref={musicAudioRef} src="/Dreamstate.mp3" loop />
 
       {/* Audio Toggle */}
       <button 
